@@ -1,3 +1,4 @@
+import { CanvasFactory } from 'pdf-parse/worker'
 import { PDFParse } from 'pdf-parse'
 import AppError from './appError.js'
 
@@ -7,14 +8,18 @@ export const extractPdfText = async (buffer) => {
     }
 
     const parser = new PDFParse({
-        data: buffer
+        data: buffer,
+        CanvasFactory
     })
+
     try {
         const result = await parser.getText()
         return result.text.trim()
     } catch (error) {
-        throw new AppError("Failed to extract text from PDF: " + error.message)        
-    }finally{
+        throw new AppError(
+            "Failed to extract text from PDF: " + error.message
+        )
+    } finally {
         await parser.destroy()
     }
 }

@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "main": "index.js",
   "type": "module",
+  "engines": {
+    "node": "22.x"
+  },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "nodemon index.js",
@@ -17,7 +20,6 @@
   "dependencies": {
     "@clerk/express": "^2.1.61",
     "@huggingface/inference": "^4.13.28",
-    "@napi-rs/canvas": "^1.0.8",
     "@prisma/client": "^6.19.2",
     "@supabase/supabase-js": "^2.99.0",
     "cors": "^2.8.6",

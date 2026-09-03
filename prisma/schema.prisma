@@ -1,0 +1,100 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model User {
+  id          String   @id @default(uuid())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  clerkUserId String   @unique
+  resumes     Resume[]
+}
+
+model Resume {
+  id             String     @id @default(uuid())
+  userId         String
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+  fileName       String?
+  fileUrl        String?
+  rawText        String?
+  structuredText Json?
+  title          String
+  analyses       Analysis[]
+  jobs           Job[]
+  user           User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Job {
+  id             String     @id @default(uuid())
+  title          String
+  description    String
+  structuredText Json?
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+  company        String?
+  jobUrl         String?
+  resumeId       String
+  analyses       Analysis[]
+  resume         Resume     @relation(fields: [resumeId], references: [id], onDelete: Cascade)
+}
+
+model Analysis {
+  id                String   @id @default(uuid())
+  resumeId          String
+  jobId             String
+  atsScroe          Int?
+  matchSkilled      Json?
+  missingSkills     Json?
+  matchedKeyWords   Json?
+  insight           Json?
+  result            Json?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  jobContentHash    String?
+  resumeContentHash String?
+  job               Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  resume            Resume   @relation(fields: [resumeId], references: [id], onDelete: Cascade)
+
+  @@unique([resumeId, jobId])
+}
+
+model Guest {
+  id           String         @id @default(uuid())
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  count        Int            @default(0)
+  tempAnalysis TempAnalysis[]
+}
+
+model TempAnalysis {
+  id                   String   @id @default(uuid())
+  guestId              String
+  resumeRawText        String?
+  resumeStructuredText Json?
+  jobRawText           String?
+  jobStructuredText    Json?
+  atsScore             Int?
+  matchedSkills        Json?
+  missingSkills        Json?
+  matchedKeywords      Json?
+  insights             Json?
+  result               Json?
+  resumeContentHash    String?
+  jobContentHash       String?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+  atsScoreReason       String?
+  fit                  Json?
+  jobMatch             Json?
+  matchMetrics         Json?
+  missingKeywords      Json?
+  experienceMatch      Json?
+  guest                Guest    @relation(fields: [guestId], references: [id])
+}

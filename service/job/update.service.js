@@ -16,21 +16,13 @@ export const updateJob = async (req) => {
         // 2. Find existing job record and verify ownership
         const existingJob = await prisma.job.findUnique({
             where: { id },
-            include: {
-                resume: {
-                    select: {
-                        id: true,
-                        userId: true,
-                    },
-                },
-            },
         })
 
         if (!existingJob) {
             throw new AppError("Job not found", 404)
         }
 
-        if (existingJob.resume.userId !== dbUser.id) {
+        if (existingJob.userId !== dbUser.id) {
             throw new AppError("You do not have permission to update this job", 403)
         }
 
@@ -40,8 +32,8 @@ export const updateJob = async (req) => {
         const tempStructuredText = await structureJobDescription(description)
         if(!tempStructuredText) throw new AppError("Failed to structure job description, please try again later.", 500)
 
-        // If resumeId is being changed, verify new resume exists and belongs to user
-        if (resumeId && resumeId !== existingJob.resumeId) {
+        // If resumeId is provided, verify ownership and link in ResumeJob
+        if (resumeId) {
             const targetResume = await prisma.resume.findUnique({
                 where: { id: resumeId },
             })
@@ -53,6 +45,21 @@ export const updateJob = async (req) => {
             if (targetResume.userId !== dbUser.id) {
                 throw new AppError("You do not have permission to attach a job to this resume", 403)
             }
+
+            await prisma.resumeJob.upsert({
+                where: {
+                    resumeId_jobId: {
+                        resumeId,
+                        jobId: id,
+                    },
+                },
+                create: {
+                    userId: dbUser.id,
+                    resumeId,
+                    jobId: id,
+                },
+                update: {},
+            })
         }
 
         const updateData = {}

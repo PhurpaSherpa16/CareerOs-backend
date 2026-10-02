@@ -14,45 +14,84 @@ export const createAnalysis = async (req) => {
     const dbUser = await getAuthUser(req)
 
     try {
-        const { resumeId, jobId,} = req.body
+        const { resumeJobId, resumeId, jobId } = req.body
 
-        // verify resume and job exist or not
-        if (!resumeId) throw new AppError("resumeId is required", 400)
-        const resume = await prisma.resume.findUnique({
-            where: { id: resumeId },
-        })
-        if (!resume) throw new AppError("Resume not found", 404)
+        let resumeJob = null
 
-        if (!jobId) throw new AppError("jobId is required", 400)
+        if (resumeJobId) {
+            // Find ResumeJob by ID and include associated resume and job
+            resumeJob = await prisma.resumeJob.findUnique({
+                where: { id: resumeJobId },
+                include: {
+                    resume: true,
+                    job: true,
+                },
+            })
 
-        if (resume.userId !== dbUser.id) {
-            throw new AppError("You do not have permission for this resume", 403)
-        }
+            if (!resumeJob) {
+                throw new AppError("ResumeJob not found", 404)
+            }
 
-        // 3. Verify job existence
-        const job = await prisma.job.findUnique({
-            where: { id: jobId },
-        })
+            if (resumeJob.userId !== dbUser.id) {
+                throw new AppError("You do not have permission for this resume-job pair", 403)
+            }
+        } else if (resumeId && jobId) {
+            // Verify resume ownership
+            const resume = await prisma.resume.findUnique({
+                where: { id: resumeId },
+            })
+            if (!resume) throw new AppError("Resume not found", 404)
+            if (resume.userId !== dbUser.id) {
+                throw new AppError("You do not have permission for this resume", 403)
+            }
 
-        if (!job) throw new AppError("Job not found", 404)
+            // Verify job ownership
+            const job = await prisma.job.findUnique({
+                where: { id: jobId },
+            })
+            if (!job) throw new AppError("Job not found", 404)
+            if (job.userId !== dbUser.id) {
+                throw new AppError("You do not have permission for this job", 403)
+            }
 
-        const resumeStructured = resume.structuredText
-        const jobStructured = job.structuredText
-
-        // Compute content hashes for resume and job using rawText & structuredText / description
-        const resumeContentString = `${resume.rawText || ""}_${JSON.stringify(resumeStructured || {})}`
-        const currentResumeHash = computeHash(resumeContentString)
-
-        const jobContentString = `${job.title || ""}_${job.description || ""}_${JSON.stringify(jobStructured || {})}`
-        const currentJobHash = computeHash(jobContentString)
-
-        // 4. Check if an Analysis already exists for resumeId + jobId
-        const existingAnalysis = await prisma.analysis.findUnique({
-            where: {
-                resumeId_jobId: {
+            // Find or create ResumeJob join record
+            resumeJob = await prisma.resumeJob.upsert({
+                where: {
+                    resumeId_jobId: {
+                        resumeId,
+                        jobId,
+                    },
+                },
+                create: {
+                    userId: dbUser.id,
                     resumeId,
                     jobId,
                 },
+                update: {},
+                include: {
+                    resume: true,
+                    job: true,
+                },
+            })
+        } else {
+            throw new AppError("resumeJobId or (resumeId and jobId) is required", 400)
+        }
+
+        // Extract structuredText of resume and job using ResumeJob
+        const resumeStructured = resumeJob.resume?.structuredText
+        const jobStructured = resumeJob.job?.structuredText
+
+        // Compute content hashes for resume and job using rawText & structuredText / description
+        const resumeContentString = `${resumeJob.resume?.rawText || ""}_${JSON.stringify(resumeStructured || {})}`
+        const currentResumeHash = computeHash(resumeContentString)
+
+        const jobContentString = `${resumeJob.job?.title || ""}_${resumeJob.job?.description || ""}_${JSON.stringify(jobStructured || {})}`
+        const currentJobHash = computeHash(jobContentString)
+
+        // 4. Check if an Analysis already exists for this resumeJobId
+        const existingAnalysis = await prisma.analysis.findUnique({
+            where: {
+                resumeJobId: resumeJob.id,
             },
         })
 
@@ -132,11 +171,10 @@ export const createAnalysis = async (req) => {
             return updatedAnalysis
         }
 
-        // Rule: Resume + Job (No existing Analysis) -> Create new Analysis storing hashes
+        // Rule: ResumeJob (No existing Analysis) -> Create new Analysis storing hashes
         const newAnalysis = await prisma.analysis.create({
             data: {
-                resumeId,
-                jobId,
+                resumeJobId: resumeJob.id,
                 ...analysisDataPayload,
             },
         })

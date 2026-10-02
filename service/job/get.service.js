@@ -12,21 +12,13 @@ export const getJobById = async (req) => {
             throw new AppError("Job ID is required", 400)
         }
 
-        // 2. Find job record with associated resume
+        // 2. Find job record with associated resumeJobs
         const job = await prisma.job.findUnique({
             where: { id },
             include: {
-                resume: {
-                    select: {
-                        id: true,
-                        userId: true,
-                        title: true,
-                        fileName: true,
-                        fileUrl: true,
-                        rawText: true,
-                        structuredText: true,
-                        createdAt: true,
-                        updatedAt: true
+                resumeJobs: {
+                    include: {
+                        resume: true,
                     },
                 },
             },
@@ -36,8 +28,8 @@ export const getJobById = async (req) => {
             throw new AppError("Job not found", 404)
         }
 
-        // 3. Ownership verification: ensure job belongs to user's resume
-        if (job.resume.userId !== dbUser.id) {
+        // 3. Ownership verification: ensure job belongs to authenticated user
+        if (job.userId !== dbUser.id) {
             throw new AppError("You do not have permission to access this job", 403)
         }
 

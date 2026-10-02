@@ -46,7 +46,7 @@ export const createJob = async (req) => {
         // 4. Create Job record in Prisma database
         const newJob = await prisma.job.create({
             data: {
-                resumeId,
+                userId: dbUser.id,
                 title: title.trim(),
                 company: company ? company.trim() : null,
                 jobUrl: jobUrl ? jobUrl.trim() : null,
@@ -55,7 +55,22 @@ export const createJob = async (req) => {
             },
         })
 
-        return newJob
+        // 5. Create ResumeJob many-to-many join record
+        let resumeJob = null
+        if (resumeId) {
+            resumeJob = await prisma.resumeJob.create({
+                data: {
+                    userId: dbUser.id,
+                    resumeId,
+                    jobId: newJob.id,
+                },
+            })
+        }
+
+        return {
+            ...newJob,
+            resumeJobId: resumeJob?.id || null,
+        }
     } catch (error) {
         if (error instanceof AppError) throw error
         console.error("Create Job Error:", error)

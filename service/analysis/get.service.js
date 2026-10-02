@@ -22,38 +22,43 @@ export const getAnalysis = async (req) => {
             throw new AppError("You do not have permission for this resume", 403)
         }
 
-        // 3. Find analysis record for resumeId & jobId
-        const analysis = await prisma.analysis.findUnique({
+        // 3. Find analysis record for resumeId & jobId via resumeJob
+        const analysis = await prisma.analysis.findFirst({
             where: {
-                resumeId_jobId: {
+                resumeJob: {
                     resumeId,
                     jobId,
+                    userId: dbUser.id,
                 },
             },
             include: {
-                resume: {
-                    select: {
-                        id: true,
-                        userId: true,
-                        title: true,
-                        fileName: true,
-                        fileUrl: true,
-                        rawText: true,
-                        structuredText: true,
-                        createdAt: true,
-                        updatedAt: true
-                    },
-                },
-                job: {
-                    select: {
-                        id: true,
-                        title: true,
-                        company: true,
-                        jobUrl: true,
-                        description: true,
-                        structuredText: true,
-                        createdAt: true,
-                        updatedAt: true
+                resumeJob: {
+                    include: {
+                        resume: {
+                            select: {
+                                id: true,
+                                userId: true,
+                                title: true,
+                                fileName: true,
+                                fileUrl: true,
+                                rawText: true,
+                                structuredText: true,
+                                createdAt: true,
+                                updatedAt: true,
+                            },
+                        },
+                        job: {
+                            select: {
+                                id: true,
+                                title: true,
+                                company: true,
+                                jobUrl: true,
+                                description: true,
+                                structuredText: true,
+                                createdAt: true,
+                                updatedAt: true,
+                            },
+                        },
                     },
                 },
             },
@@ -63,7 +68,11 @@ export const getAnalysis = async (req) => {
             throw new AppError("Analysis record not found for this resume and job", 404)
         }
 
-        return analysis
+        return {
+            ...analysis,
+            resume: analysis.resumeJob?.resume,
+            job: analysis.resumeJob?.job,
+        }
     } catch (error) {
         if (error instanceof AppError) throw error
         console.error("Get Analysis Error:", error)

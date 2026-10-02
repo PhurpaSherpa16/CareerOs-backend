@@ -93,9 +93,14 @@ const schema = `{
         }
       },
       "skills": {
-        "type": "array",
-        "description": "List of technical skills, frameworks, tools, and technologies the candidate possesses. Include programming languages, software proficiencies, and any relevant technical expertise.",
-        "items": { "type": "string" }
+        "type": "object",
+        "description": "Organize the candidate's skills into meaningful categories based on the skills found in the resume. Create categories dynamically according to the candidate's actual skill set rather than using a fixed list of categories. Categories may include areas such as Frontend Development, Backend Development, Database, DevOps, Cloud, Design, Data Science, Mobile Development, Testing, Tools, Soft Skills, or other relevant categories. Do not create unnecessary categories. Group related skills together and preserve the original skill names where appropriate.",
+        "additionalProperties": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
       },
       "projects": {
         "type": "array",

@@ -17,6 +17,8 @@ export const createResume = async (req) => {
         throw new AppError("Resume file is required", 400)
     }
 
+    console.log('file', file)
+
     // extract raw text
     const rawText = await extractPdfText(file.buffer)
     if (!rawText) {

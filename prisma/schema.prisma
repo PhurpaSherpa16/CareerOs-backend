@@ -49,7 +49,7 @@ model Analysis {
   id                String   @id @default(uuid())
   resumeId          String
   jobId             String
-  atsScroe          Int?
+  atsScore          Int?
   matchSkilled      Json?
   missingSkills     Json?
   matchedKeyWords   Json?

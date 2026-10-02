@@ -1,26 +1,42 @@
 import { InferenceClient } from "@huggingface/inference";
 import "dotenv/config"
 import AppError from "../appError.js";
-import { DeepSeekModel } from "./modeName.js";
+import { DeepSeekModel, Qwen } from "./modeName.js";
 
 const hf = new InferenceClient(process.env.HF_TOKEN)
 
-export const analysis = async(resumeStructured, jobStructured) =>{
+export const analysis = async (resumeStructured, jobStructured) => {
     try {
+        const resumePayload = resumeStructured?.schema || resumeStructured;
+        const jobPayload = jobStructured?.schema || jobStructured;
+
+        const resumeString = typeof resumePayload === "string" 
+            ? resumePayload 
+            : JSON.stringify(resumePayload, null, 2);
+
+        const jobString = typeof jobPayload === "string" 
+            ? jobPayload 
+            : JSON.stringify(jobPayload, null, 2);
+
         const response = await hf.chatCompletion({
-            model: DeepSeekModel,
-            messages:[
+            model: Qwen,
+            messages: [
                 {
                     role: 'system',
                     content: analysisInstruction
                 },
                 {
-                    role:'user',
+                    role: 'user',
                     content: `Return the analysis according to this schema:${analysisSchema} 
-                            Resume:${resumeStructured}, Job:${jobStructured}`
+
+                    Resume:
+                    ${resumeString}
+
+                    Job Description:
+                    ${jobString}`
                 }
             ],
-            max_tokens: 20000,
+            max_tokens: 8000,
             temperature: 0.2
         })
         console.log("Analysis ->", response)

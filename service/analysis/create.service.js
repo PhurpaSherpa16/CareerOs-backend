@@ -14,10 +14,7 @@ export const createAnalysis = async (req) => {
     const dbUser = await getAuthUser(req)
 
     try {
-        const {
-            resumeId,
-            jobId,
-        } = req.body
+        const { resumeId, jobId,} = req.body
 
         // verify resume and job exist or not
         if (!resumeId) throw new AppError("resumeId is required", 400)
@@ -27,6 +24,7 @@ export const createAnalysis = async (req) => {
         if (!resume) throw new AppError("Resume not found", 404)
 
         if (!jobId) throw new AppError("jobId is required", 400)
+
         if (resume.userId !== dbUser.id) {
             throw new AppError("You do not have permission for this resume", 403)
         }
@@ -62,16 +60,56 @@ export const createAnalysis = async (req) => {
         const tempAiAnalysis = await analysis(resumeStructured, jobStructured)
         const parsedAiAnalysis = safeJsonParse(tempAiAnalysis, "analysis result")
         const aiAnalysis = parsedAiAnalysis?.schema || parsedAiAnalysis
-        const {atsScore: aiAtsScore, matchedSkills: aiMatchedSkills, missingSkills: aiMissingSkills, 
-            matchedKeywords: aiMatchedKeywords, insights: aiInsights, result: aiResult} = aiAnalysis
-        
+
+        console.log('AI analysis', aiAnalysis)
+
         // Type-safe payload fields
-        const atsScoreVal = aiAtsScore || 0
-        const matchedSkillsVal = aiMatchedSkills || []
-        const missingSkillsVal = aiMissingSkills || []
-        const matchedKeywordsVal = aiMatchedKeywords || []
-        const insightVal = aiInsights || []
-        const resultVal = aiResult || []
+        const atsScoreVal = typeof aiAnalysis?.atsScore === 'object' && aiAnalysis?.atsScore !== null
+            ? (aiAnalysis.atsScore.score ?? 0)
+            : (Number(aiAnalysis?.atsScore) || 0)
+
+        const atsScoreReasonVal = typeof aiAnalysis?.atsScore === 'object' && aiAnalysis?.atsScore !== null
+            ? (aiAnalysis.atsScore.reason || null)
+            : null
+
+        const fitVal = aiAnalysis?.fit || null
+        const jobMatchVal = aiAnalysis?.jobMatch || null
+
+        // Put experienceMatch into matchMetrics as requested
+        const matchMetricsVal = {
+            ...(typeof aiAnalysis?.matchMetrics === 'object' && aiAnalysis?.matchMetrics !== null ? aiAnalysis.matchMetrics : {}),
+            experienceMatch: aiAnalysis?.experienceMatch || null,
+        }
+
+        const matchedSkillsVal = Array.isArray(aiAnalysis?.matchedSkills) ? aiAnalysis.matchedSkills : []
+        const missingSkillsVal = Array.isArray(aiAnalysis?.missingSkills) ? aiAnalysis.missingSkills : []
+        const matchedKeywordsVal = Array.isArray(aiAnalysis?.matchedKeywords) ? aiAnalysis.matchedKeywords : []
+        const missingKeywordsVal = Array.isArray(aiAnalysis?.missingKeywords) ? aiAnalysis.missingKeywords : []
+
+        const insightVal = Array.isArray(aiAnalysis?.insights)
+            ? aiAnalysis.insights
+            : Array.isArray(aiAnalysis?.insight)
+                ? aiAnalysis.insight
+                : []
+
+        // result -> make it summary and insert it
+        const summaryVal = aiAnalysis.result || null
+
+        const analysisDataPayload = {
+            atsScore: atsScoreVal,
+            atsScoreReason: atsScoreReasonVal,
+            fit: fitVal,
+            jobMatch: jobMatchVal,
+            matchMetrics: matchMetricsVal,
+            matchedSkills: matchedSkillsVal,
+            missingSkills: missingSkillsVal,
+            matchedKeywords: matchedKeywordsVal,
+            missingKeywords: missingKeywordsVal,
+            insight: insightVal,
+            summary: summaryVal,
+            resumeContentHash: currentResumeHash,
+            jobContentHash: currentJobHash,
+        }
 
         // 5. Evaluate content hash comparison
         if (existingAnalysis) {
@@ -88,16 +126,7 @@ export const createAnalysis = async (req) => {
                 where: {
                     id: existingAnalysis.id,
                 },
-                data: {
-                    atsScroe: atsScoreVal,
-                    matchSkilled: matchedSkillsVal,
-                    missingSkills: missingSkillsVal,
-                    matchedKeyWords: matchedKeywordsVal,
-                    insight: insightVal,
-                    result: resultVal,
-                    resumeContentHash: currentResumeHash,
-                    jobContentHash: currentJobHash,
-                },
+                data: analysisDataPayload,
             })
 
             return updatedAnalysis
@@ -108,14 +137,7 @@ export const createAnalysis = async (req) => {
             data: {
                 resumeId,
                 jobId,
-                atsScroe: atsScoreVal,
-                matchSkilled: matchedSkillsVal,
-                missingSkills: missingSkillsVal,
-                matchedKeyWords: matchedKeywordsVal,
-                insight: insightVal,
-                result: resultVal,
-                resumeContentHash: currentResumeHash,
-                jobContentHash: currentJobHash,
+                ...analysisDataPayload,
             },
         })
 

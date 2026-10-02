@@ -21,6 +21,10 @@ export const createJob = async (req) => {
             throw new AppError("Job title is required", 400)
         }
 
+        if (!description || typeof description !== "string" || !description.trim()) {
+            throw new AppError("Job description is required", 400)
+        }
+
         // 3. Verify that resume exists and belongs to authenticated user
         const resume = await prisma.resume.findUnique({
             where: { id: resumeId },

@@ -1,4 +1,3 @@
-import crypto from "crypto"
 import AppError from "../../utils/appError.js"
 import prisma from "../../lib/prisma.js"
 import { extractPdfText } from "../../utils/extractorPDFText.js"
@@ -6,10 +5,7 @@ import { structureResume } from "../../utils/ai/strucutreResume.js"
 import { structureJobDescription } from "../../utils/ai/strucutreJobDescription.js"
 import { analysis } from "../../utils/ai/analysis.js"
 import { safeJsonParse } from "../../utils/safeJsonParse.js"
-
-const computeHash = (content) => {
-    return crypto.createHash("sha256").update(content).digest("hex")
-}
+import { computeHash } from "../../utils/hash.js"
 
 
 export const createTempAnalysis = async (req) => {

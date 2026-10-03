@@ -2,6 +2,8 @@ import AppError from "../../utils/appError.js"
 import prisma from "../../lib/prisma.js"
 import { getAuthUser } from "../../utils/getAuthUser.js"
 import { structureJobDescription } from "../../utils/ai/strucutreJobDescription.js"
+import { safeJsonParse } from "../../utils/safeJsonParse.js"
+import { computeJobHash } from "../../utils/hash.js"
 
 export const updateJob = async (req) => {
     // 1. Authenticate user & get DB user record
@@ -27,39 +29,16 @@ export const updateJob = async (req) => {
         }
 
         // 3. Extract and validate update fields
-        const { title, company, jobUrl, description, structuredText, resumeId } = req.body
+        const { title, company, jobUrl, description, structuredText } = req.body
 
-        const tempStructuredText = await structureJobDescription(description)
-        if(!tempStructuredText) throw new AppError("Failed to structure job description, please try again later.", 500)
-
-        // If resumeId is provided, verify ownership and link in ResumeJob
-        if (resumeId) {
-            const targetResume = await prisma.resume.findUnique({
-                where: { id: resumeId },
-            })
-
-            if (!targetResume) {
-                throw new AppError("Target resume not found", 404)
+        let tempStructuredText = existingJob.structuredText
+        if (description !== undefined) {
+            if (!description || typeof description !== "string" || !description.trim()) {
+                throw new AppError("Job description cannot be empty", 400)
             }
-
-            if (targetResume.userId !== dbUser.id) {
-                throw new AppError("You do not have permission to attach a job to this resume", 403)
-            }
-
-            await prisma.resumeJob.upsert({
-                where: {
-                    resumeId_jobId: {
-                        resumeId,
-                        jobId: id,
-                    },
-                },
-                create: {
-                    userId: dbUser.id,
-                    resumeId,
-                    jobId: id,
-                },
-                update: {},
-            })
+            const structuredResult = await structureJobDescription(description.trim())
+            if (!structuredResult) throw new AppError("Failed to structure job description, please try again later.", 500)
+            tempStructuredText = safeJsonParse(structuredResult, "job description structure") || {}
         }
 
         const updateData = {}
@@ -73,6 +52,10 @@ export const updateJob = async (req) => {
         if (jobUrl !== undefined) updateData.jobUrl = jobUrl ? jobUrl.trim() : null
         if (description !== undefined) updateData.description = description ? description.trim() : null
         updateData.structuredText = tempStructuredText || {}
+
+        const finalTitle = updateData.title || existingJob.title
+        const finalDescription = updateData.description || existingJob.description
+        updateData.jobContentHash = computeJobHash(finalDescription, finalTitle)
 
         // 4. Perform update in database
         const updatedJob = await prisma.job.update({

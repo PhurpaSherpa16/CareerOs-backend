@@ -1,11 +1,6 @@
-import crypto from "crypto"
 import AppError from "../../utils/appError.js"
 import prisma from "../../lib/prisma.js"
 import { getAuthUser } from "../../utils/getAuthUser.js"
-
-const computeHash = (content) => {
-    return crypto.createHash("sha256").update(content).digest("hex")
-}
 
 export const updateAnalysis = async (req) => {
     // 1. Authenticate user & get DB user record
@@ -46,14 +41,7 @@ export const updateAnalysis = async (req) => {
 
         if (!job) throw new AppError("Job not found", 404)
 
-        // 5. Compute latest content hashes from current resume & job data
-        const resumeContentString = `${resume.rawText || ""}_${JSON.stringify(resume.structuredText || {})}`
-        const currentResumeHash = computeHash(resumeContentString)
-
-        const jobContentString = `${job.title || ""}_${job.description || ""}_${JSON.stringify(job.structuredText || {})}`
-        const currentJobHash = computeHash(jobContentString)
-
-        // 6. Extract updated analysis fields from req.body
+        // 5. Extract updated analysis fields from req.body
         const {
             atsScore,
             atsScoreReason,
@@ -68,8 +56,6 @@ export const updateAnalysis = async (req) => {
             insight,
             summary,
             result,
-            resumeContentHash,
-            jobContentHash,
         } = req.body
 
         const updatePayload = {
@@ -85,13 +71,11 @@ export const updateAnalysis = async (req) => {
             ...((insights !== undefined || insight !== undefined) && { insight: insights || insight }),
             ...(summary !== undefined && { summary }),
             ...(result !== undefined && { result }),
-            resumeContentHash: resumeContentHash || currentResumeHash,
-            jobContentHash: jobContentHash || currentJobHash,
             updatedAt: new Date(),
         }
 
 
-        // 7. Update target Analysis record by ID
+        // 6. Update target Analysis record by ID
         const updatedAnalysis = await prisma.analysis.update({
             where: { id: existingAnalysis.id },
             data: updatePayload,

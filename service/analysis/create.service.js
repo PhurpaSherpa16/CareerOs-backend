@@ -1,13 +1,8 @@
-import crypto from "crypto"
 import AppError from "../../utils/appError.js"
 import prisma from "../../lib/prisma.js"
 import { getAuthUser } from "../../utils/getAuthUser.js"
 import { analysis } from "../../utils/ai/analysis.js"
 import { safeJsonParse } from "../../utils/safeJsonParse.js"
-
-const computeHash = (content) => {
-    return crypto.createHash("sha256").update(content).digest("hex")
-}
 
 export const createAnalysis = async (req) => {
     // 1. Authenticate user & get DB user record
@@ -65,17 +60,6 @@ export const createAnalysis = async (req) => {
             update: {},
         })
 
-        // Extract structuredText of resume and job
-        const resumeStructured = resume.structuredText
-        const jobStructured = job.structuredText
-
-        // Compute content hashes for resume and job using rawText & structuredText / description
-        const resumeContentString = `${resume.rawText || ""}_${JSON.stringify(resumeStructured || {})}`
-        const currentResumeHash = computeHash(resumeContentString)
-
-        const jobContentString = `${job.title || ""}_${job.description || ""}_${JSON.stringify(jobStructured || {})}`
-        const currentJobHash = computeHash(jobContentString)
-
         // 6. Check if an Analysis already exists for this resumeJob and user
         const existingAnalysis = await prisma.analysis.findFirst({
             where: {
@@ -87,18 +71,16 @@ export const createAnalysis = async (req) => {
             },
         })
 
-        // If existing analysis found and contents have not changed, return existing analysis
+        // If existing analysis found, return existing analysis
         if (existingAnalysis) {
-            const isResumeHashSame = existingAnalysis.resumeContentHash === currentResumeHash
-            const isJobHashSame = existingAnalysis.jobContentHash === currentJobHash
-
-            if (isResumeHashSame && isJobHashSame) {
-                console.log("Analysis already exists for this resume and job. Returning existing analysis.")
-                return existingAnalysis
-            }
+            console.log("Analysis already exists for this resume and job. Returning existing analysis.")
+            return existingAnalysis
         }
 
         // 7. Run AI Analysis
+        const resumeStructured = resume.structuredText
+        const jobStructured = job.structuredText
+
         const tempAiAnalysis = await analysis(resumeStructured, jobStructured)
         const parsedAiAnalysis = safeJsonParse(tempAiAnalysis, "analysis result")
         const aiAnalysis = parsedAiAnalysis?.schema || parsedAiAnalysis
@@ -107,32 +89,25 @@ export const createAnalysis = async (req) => {
 
         // Type-safe payload fields
         const atsScoreVal = typeof aiAnalysis?.atsScore === "object" && aiAnalysis?.atsScore !== null
-            ? (aiAnalysis.atsScore.score ?? 0)
-            : (Number(aiAnalysis?.atsScore) || 0)
+            ? (aiAnalysis.atsScore.score ?? 0) : (Number(aiAnalysis?.atsScore) || 0)
 
         const atsScoreReasonVal = typeof aiAnalysis?.atsScore === "object" && aiAnalysis?.atsScore !== null
-            ? (aiAnalysis.atsScore.reason || null)
-            : null
+            ? (aiAnalysis.atsScore.reason || null) : null
 
         const fitVal = aiAnalysis?.fit || null
         const jobMatchVal = aiAnalysis?.jobMatch || null
 
         // Put experienceMatch into matchMetrics as requested
-        const matchMetricsVal = {
-            ...(typeof aiAnalysis?.matchMetrics === "object" && aiAnalysis?.matchMetrics !== null ? aiAnalysis.matchMetrics : {}),
-            experienceMatch: aiAnalysis?.experienceMatch || null,
-        }
+        const matchMetricsVal = {...(typeof aiAnalysis?.matchMetrics === "object" && aiAnalysis?.matchMetrics !== null ? aiAnalysis.matchMetrics : {}),
+            experienceMatch: aiAnalysis?.experienceMatch || null}
 
         const matchedSkillsVal = Array.isArray(aiAnalysis?.matchedSkills) ? aiAnalysis.matchedSkills : []
         const missingSkillsVal = Array.isArray(aiAnalysis?.missingSkills) ? aiAnalysis.missingSkills : []
         const matchedKeywordsVal = Array.isArray(aiAnalysis?.matchedKeywords) ? aiAnalysis.matchedKeywords : []
         const missingKeywordsVal = Array.isArray(aiAnalysis?.missingKeywords) ? aiAnalysis.missingKeywords : []
 
-        const insightVal = Array.isArray(aiAnalysis?.insights)
-            ? aiAnalysis.insights
-            : Array.isArray(aiAnalysis?.insight)
-                ? aiAnalysis.insight
-                : []
+        const insightVal = Array.isArray(aiAnalysis?.insights) ? aiAnalysis.insights
+            : Array.isArray(aiAnalysis?.insight) ? aiAnalysis.insight : []
 
         // result -> make it summary and insert it
         const summaryVal = aiAnalysis.result || null
@@ -149,23 +124,10 @@ export const createAnalysis = async (req) => {
             missingKeywords: missingKeywordsVal,
             insight: insightVal,
             summary: summaryVal,
-            resumeContentHash: currentResumeHash,
-            jobContentHash: currentJobHash,
+            strucutred: aiAnalysis,
         }
 
-        // 8. If analysis exists but content changed, update existing analysis record
-        if (existingAnalysis) {
-            const updatedAnalysis = await prisma.analysis.update({
-                where: {
-                    id: existingAnalysis.id,
-                },
-                data: analysisDataPayload,
-            })
-
-            return updatedAnalysis
-        }
-
-        // 9. Otherwise, create new Analysis record with userId and resumeJobId
+        // 8. Create new Analysis record with userId and resumeJobId
         const newAnalysis = await prisma.analysis.create({
             data: {
                 userId: dbUser.id,

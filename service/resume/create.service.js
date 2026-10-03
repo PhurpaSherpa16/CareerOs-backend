@@ -6,6 +6,7 @@ import { getAuthUser } from "../../utils/getAuthUser.js"
 import { extractPdfText } from "../../utils/extractorPDFText.js"
 import { structureResume } from "../../utils/ai/strucutreResume.js"
 import { safeJsonParse } from "../../utils/safeJsonParse.js"
+import { computeResumeHash } from "../../utils/hash.js"
 
 export const createResume = async (req) => {
     // 1. Authenticate user and get DB user
@@ -23,6 +24,30 @@ export const createResume = async (req) => {
     const rawText = await extractPdfText(file.buffer)
     if (!rawText) {
         throw new AppError("Failed to extract text from PDF", 500)
+    }
+
+    // 3. Generate resume content hash and check if same resume exists for current user
+    const resumeContentHash = computeResumeHash(rawText)
+
+    const existingResume = await prisma.resume.findFirst({
+        where: {
+            userId: dbUser.id,
+            OR: [
+                { resumeContentHash },
+                { rawText },
+            ],
+        },
+    })
+
+    if (existingResume) {
+        console.log("Resume already exists for this user. Reusing existing resume ID:", existingResume.id)
+        if (!existingResume.resumeContentHash) {
+            await prisma.resume.update({
+                where: { id: existingResume.id },
+                data: { resumeContentHash },
+            })
+        }
+        return existingResume
     }
     
     const rawStructuredText = await structureResume(rawText)
@@ -65,7 +90,7 @@ export const createResume = async (req) => {
 
         const fileUrl = publicUrlData?.publicUrl || null
 
-        // 6. Create Resume record in Prisma
+        // 6. Create Resume record in Prisma with resumeContentHash
         const newResume = await prisma.resume.create({
             data: {
                 userId,
@@ -74,6 +99,7 @@ export const createResume = async (req) => {
                 fileName: originalName,
                 rawText: rawText,
                 structuredText: structuredText,
+                resumeContentHash,
             },
         })
 

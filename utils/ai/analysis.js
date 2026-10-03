@@ -245,35 +245,6 @@ const analysisSchema = `{
         }
       },
 
-      "experienceMatch": {
-        "type": "object",
-        "description": "Candidate's total relevant work experience calculated from employment dates and its match with the JD.",
-        "properties": {
-          "experience": {
-            "type": "object",
-            "properties": {
-              "value": {
-                "type": "number",
-                "description": "Calculated relevant work experience duration."
-              },
-              "timeType": {
-                "type": "string",
-                "enum": ["year", "month", "day"],
-                "description": "Use year when duration is at least 1 year, month when under 1 year, and day only when appropriate."
-              }
-            },
-            "required": ["value", "timeType"],
-            "additionalProperties": false
-          },
-          "matchPercentage": {
-            "type": "integer",
-            "description": "How closely the candidate's calculated relevant experience matches the JD experience requirement, 0-100."
-          }
-        },
-        "required": ["experience", "matchPercentage"],
-        "additionalProperties": false
-      },
-
       "insights": {
         "type": "array",
         "description": "Actionable findings. Do not introduce new scores or duplicate existing metrics.",

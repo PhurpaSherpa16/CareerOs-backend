@@ -6,6 +6,7 @@ import { getAuthUser } from "../../utils/getAuthUser.js"
 import { extractPdfText } from "../../utils/extractorPDFText.js"
 import { structureResume } from "../../utils/ai/strucutreResume.js"
 import { safeJsonParse } from "../../utils/safeJsonParse.js"
+import { computeResumeHash } from "../../utils/hash.js"
 
 export const updateResumeFile = async (req) => {
     // 1. Authenticate user & get DB user record
@@ -85,6 +86,7 @@ export const updateResumeFile = async (req) => {
                 title,
                 rawText: rawText,
                 structuredText: structuredText || {},
+                resumeContentHash: computeResumeHash(rawText),
                 updatedAt: new Date(),
             },
         })

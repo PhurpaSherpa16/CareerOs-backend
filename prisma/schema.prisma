@@ -72,6 +72,7 @@ model Analysis {
   atsScore        Int?
   atsScoreReason  String?
   fit             Json?
+  jobMatch        Json?
   matchMetrics    Json?
   matchedSkills   Json?
   missingSkills   Json?

@@ -66,9 +66,7 @@ export const createAnalysis = async (req) => {
                 resumeJobId: resumeJob.id,
                 userId: dbUser.id,
             },
-            orderBy: {
-                createdAt: "desc",
-            },
+            orderBy: { createdAt: "desc"},
         })
 
         // If existing analysis found, return existing analysis

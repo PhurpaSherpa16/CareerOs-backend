@@ -3,12 +3,46 @@ import "dotenv/config"
 import AppError from "../appError.js"
 import { DeepSeekModel } from "./modeName.js"
 
-const hf = new InferenceClient(process.env.HF_TOKEN)
+import OpenAI from "openai";
 
+
+// const hf = new InferenceClient(process.env.HF_TOKEN)
+const openRouter = new OpenAI({
+  baseURL:"https://openrouter.ai/api/v1",
+  apiKey:process.env.OPENROUTER_API_KEY
+})
+
+// this is for hugging
+// export const structureResume = async(rawText)=>{
+//     try {
+//         const response = await hf.chatCompletion({
+//             model: DeepSeekModel,
+//             messages:[{
+//                 role: 'system',
+//                 content: instruction
+//                 },
+//                 {
+//                     role:'user',
+//                     content: `Return the resume data according to this schema:${schema} 
+//                                 Resume:${rawText}`
+//                 }
+//             ],
+//             max_tokens: 20000,
+//             temperature: 0.2
+//         })
+//         console.log('Resume -> ',response)
+//         return response.choices[0].message.content
+//     } catch (error) {
+//         console.error('Resume Structuring Error:', error)
+//         throw new AppError(error.message || 'Failed to structure resume, try again later', 500)
+//     }
+// }
+
+// this is for openRouter AI
 export const structureResume = async(rawText)=>{
     try {
-        const response = await hf.chatCompletion({
-            model: DeepSeekModel,
+        const response = await openRouter.chat.completions.create({
+            model: 'openrouter/free',
             messages:[{
                 role: 'system',
                 content: instruction
@@ -29,6 +63,8 @@ export const structureResume = async(rawText)=>{
         throw new AppError(error.message || 'Failed to structure resume, try again later', 500)
     }
 }
+
+
 
 const instruction = `You are a resume parsing assistant.
 

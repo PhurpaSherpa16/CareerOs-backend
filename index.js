@@ -7,6 +7,7 @@ import userAuthClerk from './routes/userAuthClerk.routes.js'
 import resumeRoutes from './routes/resume.routes.js'
 import jobRoutes from './routes/job.routes.js'
 import analysisRoutes from './routes/analysis.routes.js'
+import aiModelRoutes from './routes/aiModel.routes.js'
 import { initTempAnalysisCron } from './utils/tempAnalysis.cron.js'
 
 const app = express()
@@ -19,6 +20,7 @@ app.use('/api/auth', userAuthClerk)
 app.use('/resume', resumeRoutes)
 app.use('/job', jobRoutes)
 app.use('/analysis', analysisRoutes)
+app.use('/ai/model', aiModelRoutes)
 
 // Initialize cron job for TempAnalysis auto-deletion
 initTempAnalysisCron()

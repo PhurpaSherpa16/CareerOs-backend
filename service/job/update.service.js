@@ -4,6 +4,7 @@ import { getAuthUser } from "../../utils/getAuthUser.js"
 import { structureJobDescription } from "../../utils/ai/strucutreJobDescription.js"
 import { safeJsonParse } from "../../utils/safeJsonParse.js"
 import { computeJobHash } from "../../utils/hash.js"
+import { getUserAiModel } from "../../utils/ai/getUserAiModel.js"
 
 export const updateJob = async (req) => {
     // 1. Authenticate user & get DB user record
@@ -36,7 +37,9 @@ export const updateJob = async (req) => {
             if (!description || typeof description !== "string" || !description.trim()) {
                 throw new AppError("Job description cannot be empty", 400)
             }
-            const structuredResult = await structureJobDescription(description.trim())
+            // Fetch user's saved AI model preference
+            const userAi = await getUserAiModel(dbUser.id)
+            const structuredResult = await structureJobDescription(description.trim(), userAi?.model ? { model: userAi.model, provider: userAi.provider } : undefined)
             if (!structuredResult) throw new AppError("Failed to structure job description, please try again later.", 500)
             tempStructuredText = safeJsonParse(structuredResult, "job description structure") || {}
         }

@@ -3,6 +3,7 @@ import prisma from "../../lib/prisma.js"
 import { getAuthUser } from "../../utils/getAuthUser.js"
 import { analysis } from "../../utils/ai/analysis.js"
 import { safeJsonParse } from "../../utils/safeJsonParse.js"
+import { getUserAiModel } from "../../utils/ai/getUserAiModel.js"
 
 export const createAnalysis = async (req) => {
     // 1. Authenticate user & get DB user record
@@ -79,7 +80,9 @@ export const createAnalysis = async (req) => {
         const resumeStructured = resume.structuredText
         const jobStructured = job.structuredText
 
-        const tempAiAnalysis = await analysis(resumeStructured, jobStructured)
+        // Fetch user's saved AI model preference
+        const userAi = await getUserAiModel(dbUser.id)
+        const tempAiAnalysis = await analysis(resumeStructured, jobStructured, userAi?.model ? { model: userAi.model, provider: userAi.provider } : undefined)
         const parsedAiAnalysis = safeJsonParse(tempAiAnalysis, "analysis result")
         const aiAnalysis = parsedAiAnalysis?.schema || parsedAiAnalysis
 

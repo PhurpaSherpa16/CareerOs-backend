@@ -4,6 +4,7 @@ import { getAuthUser } from "../../utils/getAuthUser.js"
 import { structureJobDescription } from "../../utils/ai/strucutreJobDescription.js"
 import { safeJsonParse } from "../../utils/safeJsonParse.js"
 import { computeJobHash } from "../../utils/hash.js"
+import { getUserAiModel } from "../../utils/ai/getUserAiModel.js"
 
 export const createJob = async (req) => {
     // 1. Authenticate user & get DB user record
@@ -52,7 +53,9 @@ export const createJob = async (req) => {
                 })
             }
         } else {
-            const rawJobStructured = await structureJobDescription(cleanDescription)
+            // Fetch user's saved AI model preference
+            const userAi = await getUserAiModel(dbUser.id)
+            const rawJobStructured = await structureJobDescription(cleanDescription, userAi?.model ? { model: userAi.model, provider: userAi.provider } : undefined)
             if (!rawJobStructured) throw new AppError("Failed to structure job description, please try again later.", 500)
             const tempStructuredText = safeJsonParse(rawJobStructured, "job description structure")
 

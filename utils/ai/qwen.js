@@ -1,17 +1,15 @@
-import { InferenceClient } from "@huggingface/inference"
 import "dotenv/config"
 import fs from "fs/promises"
 import path from "path"
 import { fileURLToPath } from "url"
-import { DeepSeekModel } from "./modeName"
+import { aiNavigator } from "./aiNavigator.js"
+import { Qwen } from "./modeName.js"
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
-const hf = new InferenceClient(process.env.HF_TOKEN)
-
-export const QwenAi = async()=>{
-    const prd = await fs.readFile(path.join(__dirname, '../../ai/PRD.md'),'utf-8')
+export const QwenAi = async (model = Qwen) => {
+    const prd = await fs.readFile(path.join(__dirname, '../../ai/PRD.md'), 'utf-8')
     const instruct = `You are the CareerOS AI assistant.
             CareerOS is a platform that helps users analyze their resumes
             against job descriptions and understand how well their resume
@@ -26,27 +24,20 @@ export const QwenAi = async()=>{
             PRD:
             ${prd}`
 
-    const response = await hf.chatCompletion({
-        model: DeepSeekModel,
-        messages:[{
-            role: 'system',
-            content: instruct
+    return await aiNavigator({
+        messages: [
+            {
+                role: 'system',
+                content: instruct
             },
             {
-                role:'user',
+                role: 'user',
                 content: userResponse
             }
         ],
-        max_tokens: 20000,
-        temperature: 0.2
+        model,
+        maxTokens: 20000,
+        temperature: 0.2,
+        context: 'Qwen AI'
     })
-    console.log('AI response -> ',response)
-    return response.choices[0].message.content
 }
-
-QwenAi().then((result)=>{
-    console.log("\nQwen response:\n")
-    console.log(result)
-}).catch((error)=>{
-    console.log('AI error -> ',error)
-})

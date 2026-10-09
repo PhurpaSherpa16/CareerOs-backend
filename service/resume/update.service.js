@@ -7,6 +7,7 @@ import { extractPdfText } from "../../utils/extractorPDFText.js"
 import { structureResume } from "../../utils/ai/strucutreResume.js"
 import { safeJsonParse } from "../../utils/safeJsonParse.js"
 import { computeResumeHash } from "../../utils/hash.js"
+import { getUserAiModel } from "../../utils/ai/getUserAiModel.js"
 
 export const updateResumeFile = async (req) => {
     // 1. Authenticate user & get DB user record
@@ -33,7 +34,9 @@ export const updateResumeFile = async (req) => {
     const rawText = await extractPdfText(file.buffer)
     if (!rawText) throw new AppError("Failed to extract text from PDF", 500)
 
-    const rawStructuredText = await structureResume(rawText)
+    // Fetch user's saved AI model preference
+    const userAi = await getUserAiModel(dbUser.id)
+    const rawStructuredText = await structureResume(rawText, userAi?.model ? { model: userAi.model, provider: userAi.provider } : undefined)
     if (!rawStructuredText) throw new AppError("Failed to extract structured text from PDF", 500)
     const structuredText = safeJsonParse(rawStructuredText, "resume structure")
     

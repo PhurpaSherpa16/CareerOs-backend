@@ -86,8 +86,6 @@ export const createAnalysis = async (req) => {
         const parsedAiAnalysis = safeJsonParse(tempAiAnalysis, "analysis result")
         const aiAnalysis = parsedAiAnalysis?.schema || parsedAiAnalysis
 
-        console.log("AI analysis", aiAnalysis)
-
         // Type-safe payload fields
         const atsScoreVal = typeof aiAnalysis?.atsScore === "object" && aiAnalysis?.atsScore !== null
             ? (aiAnalysis.atsScore.score ?? 0) : (Number(aiAnalysis?.atsScore) || 0)

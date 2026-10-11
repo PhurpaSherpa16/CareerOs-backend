@@ -19,6 +19,15 @@ export const GetJobDescription = CatchAsync(async (req, res) => {
     })
 })
 
+export const GetUserJobs = CatchAsync(async (req, res) => {
+    const result = await jobService.getUserJobs(req)
+    return res.status(200).json({
+        success: true,
+        message: "Job descriptions retrieved successfully",
+        data: result,
+    })
+})
+
 export const UpdateJobDescription = CatchAsync(async (req, res) => {
     const result = await jobService.updateJob(req)
     return res.status(200).json({
@@ -27,3 +36,4 @@ export const UpdateJobDescription = CatchAsync(async (req, res) => {
         data: result,
     })
 })
+
